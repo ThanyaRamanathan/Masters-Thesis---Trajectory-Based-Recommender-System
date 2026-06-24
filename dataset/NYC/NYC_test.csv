@@ -1,0 +1,4 @@
+user_id,poi_id,category,timestamp
+u2,p2,shop,2024-01-03 12:00:00
+u2,p3,park,2024-01-03 13:00:00
+u2,p4,food,2024-01-03 14:00:00
