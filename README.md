@@ -11,6 +11,30 @@ This project uses:
 - Text summarisation of user history as an auxiliary feature
 - A next POI, time, and category prediction head
 
+## Model Explanation
+
+The core idea is to predict the next point of interest (POI), its category, and the likely time bin from a user's recent trajectory history.
+
+### 1. Sequence encoder
+The model consumes a sequence of recent POIs, categories, and time bins. Each input is embedded separately and then combined with a lightweight flow feature that captures how often a POI tends to be followed by another POI in the training data.
+
+### 2. Transformer backbone
+The concatenated embeddings are passed through a Transformer encoder. This allows the model to learn contextual dependencies across the user's recent visits rather than treating each step independently.
+
+### 3. Prediction heads
+From the final hidden state of the sequence, three output heads predict:
+- the next POI,
+- the next category,
+- the next time bin.
+
+The training objective is the sum of three cross-entropy losses, one per prediction head.
+
+### 4. Text summariser branch
+To enrich the sequence representation, the model can optionally condition on a text summary of the recent trajectory history. The summariser converts the history text into an embedding that is injected into the sequence representation before the Transformer layer. This provides a semantic view of the user's behaviour beyond raw IDs and timestamps.
+
+### 5. Baseline ablation
+The repository also supports a no-summariser baseline. In that setting, the model uses a learned summary embedding instead of the text summariser output, allowing direct comparison between the base GETNext-style model and the summariser-augmented version.
+
 ## Repository Structure
 
 - `src/` — model, data pipeline, training, evaluation, inference, and utilities
@@ -92,3 +116,4 @@ python -m src.infer --checkpoint runs/exp1/best_model.pt --meta runs/exp1/metada
 - The model builds a trajectory flow map from training data, similar to GETNext.
 - A text prompt summarises the trajectory history before recommendation.
 - The project includes training, evaluation, and inference flows for reproducible experiments.
+- The code is designed so the text summariser can be enabled or disabled easily, which makes ablation studies straightforward.
