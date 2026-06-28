@@ -1,4 +1,4 @@
-# Thesis Rebuild: GETNext + Text Summarisation
+# Master's Thesis: GETNext + Text Summarisation
 
 A reconstructed Masters thesis project based on the GETNext trajectory flow model, extended with a text summarisation prompt before the recommendation layer.
 
