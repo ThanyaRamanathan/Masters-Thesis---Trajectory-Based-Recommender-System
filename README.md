@@ -9,6 +9,7 @@ This project uses:
 - Foursquare NYC trajectory data
 - A reconstructed GETNext-style flow-enhanced transformer
 - Text summarisation of user history as an auxiliary feature
+- Structured trajectory intent features for behaviour-aware recommendation
 - A next POI, time, and category prediction head
 
 ## Model Explanation
@@ -34,6 +35,18 @@ To enrich the sequence representation, the model can optionally condition on a t
 
 ### 5. Baseline ablation
 The repository also supports a no-summariser baseline. In that setting, the model uses a learned summary embedding instead of the text summariser output, allowing direct comparison between the base GETNext-style model and the summariser-augmented version.
+
+### 6. Structured intent branch
+The model can also fuse a compact structured intent vector into the trajectory representation. The current implementation uses deterministic trajectory features that mirror labels an LLM could generate later:
+
+- normalized history length,
+- unique/repeat POI ratio,
+- dominant category ratio,
+- recent repeat signal,
+- normalized time gap,
+- cyclic last-visit time features.
+
+This branch is enabled with `--use-intent`.
 
 ## Repository Structure
 
@@ -104,6 +117,50 @@ Use the same flags for evaluation and inference when comparing baselines.
 ```bash
 python -m src.evaluate --checkpoint runs/exp1/best_model.pt --meta runs/exp1/metadata.pkl --test-file dataset/NYC/NYC_test.csv
 ```
+
+Evaluation reports top-1 accuracy plus ranking metrics for next-POI recommendation:
+
+- `Recall@5`, `Recall@10`, `Recall@20`
+- `NDCG@5`, `NDCG@10`, `NDCG@20`
+- `MRR`
+
+## Comparison Experiments
+
+Run controlled baseline and intent comparisons with:
+
+```bash
+python -m src.compare_models \
+  --train-file dataset/NYC_full/NYC/NYC_train.csv \
+  --val-file dataset/NYC_full/NYC/NYC_val.csv \
+  --test-file dataset/NYC_full/NYC/NYC_test.csv \
+  --output-dir runs/nyc_full_20k_10ep \
+  --epochs 10 \
+  --batch-size 64 \
+  --seed 42 \
+  --device cpu \
+  --variants baseline,intent \
+  --max-train-samples 20000 \
+  --max-val-samples 5000 \
+  --max-test-samples 5000
+```
+
+### Latest Result
+
+On the full NYC split subset above, the structured intent branch improved all reported test metrics over the baseline:
+
+| Metric | Base | Intent | Delta |
+|---|---:|---:|---:|
+| Loss | 16.8355 | 16.6226 | -0.2129 |
+| POI Acc | 0.0056 | 0.0248 | +0.0192 |
+| Recall@5 | 0.0188 | 0.0844 | +0.0656 |
+| Recall@10 | 0.0358 | 0.1288 | +0.0930 |
+| Recall@20 | 0.0612 | 0.1956 | +0.1344 |
+| NDCG@10 | 0.0176 | 0.0687 | +0.0511 |
+| MRR | 0.0140 | 0.0551 | +0.0411 |
+| Category Acc | 0.0788 | 0.1386 | +0.0598 |
+| Time Acc | 0.0282 | 0.0536 | +0.0254 |
+
+The compact result summary is stored in `results/nyc_full_20k_10ep_summary.json`.
 
 ## Inference
 

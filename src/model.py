@@ -138,6 +138,7 @@ class GETNextFlowModel(nn.Module):
         self.time_embed = nn.Embedding(num_time_bins, config.time_embed_dim, padding_idx=0)
         self.flow_proj = nn.Linear(2, config.hidden_dim)
         self.summary_proj = nn.Linear(config.summary_embed_dim, config.hidden_dim)
+        self.intent_proj = nn.Linear(config.intent_feature_dim, config.hidden_dim)
         self.input_proj = nn.Linear(config.poi_embed_dim + config.cat_embed_dim + config.time_embed_dim + config.hidden_dim, config.hidden_dim)
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=config.hidden_dim,
@@ -154,7 +155,7 @@ class GETNextFlowModel(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.summary_embedding = nn.Parameter(torch.randn(config.summary_embed_dim))
 
-    def forward(self, poi_seq, cat_seq, time_seq, flow_feat, summary_embed, attention_mask):
+    def forward(self, poi_seq, cat_seq, time_seq, flow_feat, summary_embed, attention_mask, intent_feat=None):
         poi_embed = self.poi_embed(poi_seq)
         cat_embed = self.cat_embed(cat_seq)
         time_embed = self.time_embed(time_seq)
@@ -165,6 +166,9 @@ class GETNextFlowModel(nn.Module):
 
         summary_context = self.summary_proj(summary_embed).unsqueeze(1)
         seq_embed = seq_embed + summary_context
+        if intent_feat is not None:
+            intent_context = self.intent_proj(intent_feat).unsqueeze(1)
+            seq_embed = seq_embed + intent_context
 
         src_key_padding_mask = attention_mask == 0
         transformer_out = self.transformer(seq_embed, src_key_padding_mask=src_key_padding_mask)
@@ -177,15 +181,17 @@ class GETNextFlowModel(nn.Module):
 
 
 class GETNextModelWrapper(nn.Module):
-    def __init__(self, model, summariser=None):
+    def __init__(self, model, summariser=None, use_intent=False):
         super().__init__()
         self.model = model
         self.summariser = summariser
+        self.use_intent = use_intent
 
-    def forward(self, poi_seq, cat_seq, time_seq, flow_feat, history_text, attention_mask):
+    def forward(self, poi_seq, cat_seq, time_seq, flow_feat, history_text, attention_mask, intent_feat=None):
         if self.summariser is None:
             batch_size = poi_seq.size(0)
             summary_embeddings = self.model.summary_embedding.unsqueeze(0).expand(batch_size, -1)
         else:
             summary_embeddings = self.summariser(history_text)
-        return self.model(poi_seq, cat_seq, time_seq, flow_feat, summary_embeddings, attention_mask)
+        active_intent = intent_feat if self.use_intent else None
+        return self.model(poi_seq, cat_seq, time_seq, flow_feat, summary_embeddings, attention_mask, active_intent)

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .config import TrainingConfig
-from .data import TrajectoryDataset, collate_batch
+from .data import INTENT_FEATURE_NAMES, TrajectoryDataset, collate_batch
 from .model import TextSummariser, GETNextFlowModel, GETNextModelWrapper
 from .utils import save_metadata, set_seed
 
@@ -29,6 +29,11 @@ def parse_args():
         "--no-summariser",
         action="store_true",
         help="Disable text summariser and run the base GETNext model.",
+    )
+    parser.add_argument(
+        "--use-intent",
+        action="store_true",
+        help="Fuse structured trajectory intent features into the GETNext encoder.",
     )
     return parser.parse_args()
 
@@ -61,7 +66,7 @@ def evaluate(model, dataloader, device):
     loss_fn = nn.CrossEntropyLoss()
     with torch.no_grad():
         for batch in dataloader:
-            for key in ["poi_seq", "cat_seq", "time_seq", "flow_feat", "attention_mask", "target_poi", "target_cat", "target_time"]:
+            for key in ["poi_seq", "cat_seq", "time_seq", "flow_feat", "intent_feat", "attention_mask", "target_poi", "target_cat", "target_time"]:
                 batch[key] = batch[key].to(device)
             preds = model(
                 batch["poi_seq"],
@@ -70,6 +75,7 @@ def evaluate(model, dataloader, device):
                 batch["flow_feat"],
                 batch["history_text"],
                 batch["attention_mask"],
+                batch["intent_feat"],
             )
             loss = sum(loss_fn(pred, batch[target]) for pred, target in zip(preds, ["target_poi", "target_cat", "target_time"]))
             total_loss += loss.item() * batch["poi_seq"].size(0)
@@ -101,7 +107,7 @@ def train(args):
         num_time_bins=train_ds.num_time_bins,
         config=config,
     )
-    model_wrapper = GETNextModelWrapper(model, summariser)
+    model_wrapper = GETNextModelWrapper(model, summariser, use_intent=args.use_intent)
     model_wrapper.to(config.device)
 
     optimizer = AdamW(model_wrapper.parameters(), lr=config.lr, weight_decay=config.weight_decay)
@@ -112,7 +118,7 @@ def train(args):
         model_wrapper.train()
         running_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{config.epochs}"):
-            for key in ["poi_seq", "cat_seq", "time_seq", "flow_feat", "attention_mask", "target_poi", "target_cat", "target_time"]:
+            for key in ["poi_seq", "cat_seq", "time_seq", "flow_feat", "intent_feat", "attention_mask", "target_poi", "target_cat", "target_time"]:
                 batch[key] = batch[key].to(config.device)
             optimizer.zero_grad()
             preds = model_wrapper(
@@ -122,6 +128,7 @@ def train(args):
                 batch["flow_feat"],
                 batch["history_text"],
                 batch["attention_mask"],
+                batch["intent_feat"],
             )
             loss = sum(loss_fn(pred, batch[target]) for pred, target in zip(preds, ["target_poi", "target_cat", "target_time"]))
             loss.backward()
@@ -142,9 +149,11 @@ def train(args):
                     "poi2idx": train_ds.poi2idx,
                     "cat2idx": train_ds.cat2idx,
                     "idx2poi": train_ds.idx2poi,
-                        "idx2cat": train_ds.idx2cat,
-                        "flow_map": train_ds.flow_map,
+                    "idx2cat": train_ds.idx2cat,
+                    "flow_map": train_ds.flow_map,
                     "config": config,
+                    "use_intent": args.use_intent,
+                    "intent_feature_names": INTENT_FEATURE_NAMES,
                 },
             )
     print("Training complete.")

@@ -16,6 +16,7 @@ class TrainingConfig:
     transformer_layers: int = 2
     transformer_ffn_dim: int = 256
     summary_embed_dim: int = 384
+    intent_feature_dim: int = 8
     batch_size: int = 32
     epochs: int = 50
     lr: float = 0.001

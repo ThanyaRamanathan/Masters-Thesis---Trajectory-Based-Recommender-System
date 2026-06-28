@@ -1,0 +1,65 @@
+{
+  "experiment": "nyc_full_20k_10ep",
+  "dataset": "Foursquare NYC full split",
+  "settings": {
+    "train_samples": 20000,
+    "validation_samples": 5000,
+    "test_samples": 5000,
+    "epochs": 10,
+    "batch_size": 64,
+    "seed": 42,
+    "device": "cpu",
+    "variants": ["baseline", "intent"],
+    "intent_features": [
+      "seq_len_norm",
+      "unique_poi_ratio",
+      "repeat_visit_ratio",
+      "dominant_cat_ratio",
+      "recent_repeat",
+      "mean_time_gap_norm",
+      "last_time_sin",
+      "last_time_cos"
+    ]
+  },
+  "test_metrics": {
+    "baseline": {
+      "loss": 16.83549168395996,
+      "poi_acc": 0.0056,
+      "recall_at_5": 0.0188,
+      "recall_at_10": 0.0358,
+      "recall_at_20": 0.0612,
+      "ndcg_at_5": 0.012181515348216205,
+      "ndcg_at_10": 0.01763614527910964,
+      "ndcg_at_20": 0.02398898136904388,
+      "mrr": 0.013951920127516126,
+      "category_acc": 0.0788,
+      "time_acc": 0.0282
+    },
+    "intent": {
+      "loss": 16.62256050415039,
+      "poi_acc": 0.0248,
+      "recall_at_5": 0.0844,
+      "recall_at_10": 0.1288,
+      "recall_at_20": 0.1956,
+      "ndcg_at_5": 0.05455046117182285,
+      "ndcg_at_10": 0.06869811436388792,
+      "ndcg_at_20": 0.08548119939681101,
+      "mrr": 0.0550647143912158,
+      "category_acc": 0.1386,
+      "time_acc": 0.0536
+    },
+    "delta_intent_minus_baseline": {
+      "loss": -0.21293117980957277,
+      "poi_acc": 0.0192,
+      "recall_at_5": 0.0656,
+      "recall_at_10": 0.093,
+      "recall_at_20": 0.1344,
+      "ndcg_at_5": 0.042368945823606646,
+      "ndcg_at_10": 0.05106196908477828,
+      "ndcg_at_20": 0.06149221802776713,
+      "mrr": 0.04111279426369967,
+      "category_acc": 0.059800000000000006,
+      "time_acc": 0.025400000000000002
+    }
+  }
+}
